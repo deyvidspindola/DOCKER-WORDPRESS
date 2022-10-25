@@ -1,0 +1,60 @@
+version: "3.7"
+
+services:
+
+  nginx:
+    container_name: wordpress_nginx
+    image: nginx
+    volumes:
+      - ./app:/var/www
+      - ./resources/config/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./resources/config/nginx/nginx.conf:/etc/nginx/nginx.conf
+    restart: always
+    ports:
+      - "8090:80"
+    networks:
+      - wordpress-app-network
+    depends_on:
+      - app
+
+  app:
+    container_name: wordpress_app
+    build:
+      context: ./resources
+    volumes:
+        - ./app:/var/www   
+        - ./resources/config/startups/config.sh:/opt/config.sh
+        - ./resources/config/php.ini:/usr/local/etc/php/php.ini
+    command: bash -c "bash /opt/config.sh && tail -f /dev/null"
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - wordpress-app-network
+    depends_on:
+      - mysql
+
+  mysql:
+    container_name: wordpress_mysql
+    image: mysql:8.0.28
+    environment:
+      MYSQL_ROOT_PASSWORD: wordpress_database
+      MYSQL_USER: admin_user
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: wordpress_database
+    volumes:
+      - ./db_mysql:/var/lib/mysql
+      - ./resources/config/mysqld.cnf:/etc/mysql/mysql.conf.d/mysqld.cnf
+    restart: always
+    ports:
+    - "3307:3306"
+    networks:
+      - wordpress-app-network
+
+networks:
+  wordpress-app-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
